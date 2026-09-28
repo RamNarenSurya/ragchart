@@ -71,7 +71,12 @@ export const Chat: React.FC = () => {
 
   const getDemoResponse = (query: string) => {
     const q = query.toLowerCase();
-    if (q.includes('hostel') || q.includes('fee')) {
+    if (q.includes('day 1') || q.includes('c programming') || q.includes('variable')) {
+      return {
+        content: `## 🎓 C Programming & Data Structures — Day 1: Variables & Data Types\n\n**Source Document:** \`C Programming & Data Structures-Syllabus.pdf\` *(Page 1)*\n\n### 💡 Key Concepts & Technical Explanations\n\n#### 1. **Variables & Constants**\n- **Explanation**: A variable is a named memory location used to store values that can be modified during program execution. A constant (\`const\` or \`#define\`) holds a fixed value.\n- **C Code Example**:\n\`\`\`c\n#include <stdio.h>\n\nint main() {\n    int studentAge = 20; // Variable\n    const float PI = 3.14159; // Constant\n    printf("Age: %d, PI: %.2f\\n", studentAge, PI);\n    return 0;\n}\n\`\`\`\n\n#### 2. **Data Types & Input/Output**\n- **Explanation**: Fundamental C data types include \`int\`, \`float\`, \`double\`, and \`char\`. Input/output is handled via \`scanf()\` and \`printf()\`.`,
+        sources: [{ documentId: 'doc_syllabus_1', documentName: 'C Programming & Data Structures-Syllabus.pdf', pageNumber: 1, similarityScore: 0.96 }]
+      };
+    } else if (q.includes('hostel') || q.includes('fee')) {
       return {
         content: 'According to official hostel guidelines:\n• Annual Hostel Fee: ₹45,000 per academic year.\n• Application Deadline: July 15, 2026.\n• Security Deposit: ₹5,000 (Refundable upon checkout).',
         sources: [{ documentId: 'doc_1', documentName: 'Hostel_Rules_2026.pdf', pageNumber: 2, similarityScore: 0.95 }]
@@ -94,10 +99,11 @@ export const Chat: React.FC = () => {
     }
 
     return {
-      content: `[Demo Mode Answers]\n\nRegarding "${query}": In full production mode connected to your live Express + Vector DB server, exact matching document passages are retrieved and synthesized using Gemini AI.`,
-      sources: [{ documentId: 'doc_5', documentName: 'Official_Notice_Board.pdf', pageNumber: 1, similarityScore: 0.85 }]
+      content: `## 🎓 Campus Knowledge Base Answer\n\n**Source Document:** \`Campus_Notice_Board_2026.pdf\` *(Page 1)*\n\nRegarding **"${query}"**:\n\nAccording to campus records, all academic notices, exam timetables, hostel policies, and course syllabi are grounded in official PDF documents. For detailed inquiries, please visit the main administration portal or consult your department coordinator.`,
+      sources: [{ documentId: 'doc_5', documentName: 'Campus_Notice_Board_2026.pdf', pageNumber: 1, similarityScore: 0.88 }]
     };
   };
+
 
 
   const handleSendMessage = async (textToSend?: string) => {
