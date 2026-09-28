@@ -3,3 +3,6 @@ dist/
 .env
 .env.*
 !.env.example
+backend/uploads/
+backend/college_rag.json
+backend/*.db
