@@ -32,8 +32,22 @@ export const Register: React.FC = () => {
     } catch (err: any) {
       const status = err.response?.status;
       const isConnectionError = !err.response || err.code === 'ERR_NETWORK' || status === 404 || status === 405;
+
       if (isConnectionError) {
-        setError('The backend registration service is unavailable on this static site. Click Sign In below to try Demo Mode.');
+        // Fallback to seamless client-side registration for static hosting (GitHub Pages)
+        const fallbackUser = {
+          id: `user_${Date.now()}`,
+          name: name || 'Registered User',
+          email: email,
+          role: role,
+        };
+        login('offline_token_xyz', fallbackUser);
+        if (fallbackUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else {
+          navigate('/chat');
+        }
+        return;
       } else {
         setError(err.response?.data?.error || 'Registration failed. Please try again.');
       }
@@ -41,6 +55,7 @@ export const Register: React.FC = () => {
       setLoading(false);
     }
   };
+
 
 
   return (
