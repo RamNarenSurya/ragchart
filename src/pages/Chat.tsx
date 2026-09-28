@@ -1,0 +1,275 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Sidebar } from '../components/Sidebar';
+import { SourceBadge } from '../components/SourceBadge';
+import { Conversation, Message } from '../types';
+import { api } from '../services/api';
+import { Send, Bot, User, Sparkles, AlertCircle, HelpCircle } from 'lucide-react';
+
+export const Chat: React.FC = () => {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await api.get('/conversations');
+      setConversations(res.data.conversations || []);
+    } catch (e) {
+      console.error('Failed to fetch conversations:', e);
+    }
+  };
+
+  const loadConversation = async (convId: string) => {
+    try {
+      setActiveConvId(convId);
+      const res = await api.get(`/conversations/${convId}`);
+      setMessages(res.data.messages || []);
+    } catch (e) {
+      console.error('Failed to load conversation:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const handleNewConversation = () => {
+    setActiveConvId(null);
+    setMessages([]);
+    setInputMessage('');
+  };
+
+  const handleDeleteConversation = async (convId: string) => {
+    try {
+      await api.delete(`/conversations/${convId}`);
+      if (activeConvId === convId) {
+        handleNewConversation();
+      }
+      fetchConversations();
+    } catch (e) {
+      console.error('Failed to delete conversation:', e);
+    }
+  };
+
+  const handleSendMessage = async (textToSend?: string) => {
+    const queryText = textToSend || inputMessage;
+    if (!queryText || !queryText.trim() || loading) return;
+
+    setError('');
+    setInputMessage('');
+    setLoading(true);
+
+    const userTempMsg: Message = {
+      id: `temp_${Date.now()}`,
+      role: 'user',
+      content: queryText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userTempMsg]);
+
+    try {
+      const res = await api.post('/chat', {
+        conversationId: activeConvId,
+        message: queryText.trim(),
+      });
+
+      setActiveConvId(res.data.conversationId);
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== userTempMsg.id),
+        res.data.userMessage,
+        res.data.assistantMessage,
+      ]);
+
+      fetchConversations();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to process answer from college knowledge base.');
+      setMessages((prev) => prev.filter((m) => m.id !== userTempMsg.id));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const samplePrompts = [
+    "What is the annual hostel fee and application deadline?",
+    "When does the Autumn 2026 semester begin?",
+    "How much is the Semester 5 examination fee?",
+    "What scholarships are available for merit students?",
+    "What are the library opening hours on weekdays?",
+    "Who won the inter-college cricket tournament?",
+  ];
+
+  return (
+    <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-main">
+      {/* Conversation Sidebar */}
+      <Sidebar
+        conversations={conversations}
+        activeConvId={activeConvId}
+        onSelectConversation={loadConversation}
+        onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
+      />
+
+      {/* Main Chat Body */}
+      <div className="flex-1 flex flex-col h-full bg-main relative">
+        {/* Welcome Screen when no messages */}
+        {messages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-2xl mx-auto overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500 flex items-center justify-center shadow-md mb-5 text-white">
+              <Bot className="w-7 h-7" />
+            </div>
+
+            <h2 className="text-2xl font-extrabold text-heading tracking-tight">
+              Ask Anything About Official Campus Documents
+            </h2>
+            <p className="text-body text-xs mt-2 leading-relaxed max-w-lg">
+              Our AI Assistant uses <strong className="text-primary font-semibold">Retrieval-Augmented Generation (RAG)</strong> to answer queries using official uploaded PDFs, notices, and calendars with exact source citations.
+            </p>
+
+            {/* Prompt Chips */}
+            <div className="mt-8 w-full">
+              <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3 flex items-center justify-center space-x-1">
+                <Sparkles className="w-3.5 h-3.5 text-ai" />
+                <span>Suggested Questions</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+                {samplePrompts.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendMessage(prompt)}
+                    className="p-3.5 rounded-xl saas-card saas-card-hover text-xs text-body hover:text-heading flex items-start space-x-2.5 text-left"
+                  >
+                    <HelpCircle className="w-4 h-4 text-ai mt-0.5 flex-shrink-0" />
+                    <span>{prompt}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Messages Container */
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {messages.map((msg) => {
+              const isUser = msg.role === 'user';
+              const isUnknown =
+                msg.role === 'assistant' &&
+                msg.content.includes("couldn't find this information in the college knowledge base");
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex items-start space-x-3.5 ${
+                    isUser ? 'flex-row-reverse space-x-reverse' : ''
+                  }`}
+                >
+                  {/* Avatar */}
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                      isUser
+                        ? 'bg-primary text-white'
+                        : isUnknown
+                        ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                        : 'bg-cyan-500 text-white'
+                    }`}
+                  >
+                    {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                  </div>
+
+                  {/* Message Bubble */}
+                  <div
+                    className={`max-w-2xl rounded-2xl p-4 text-sm leading-relaxed ${
+                      isUser
+                        ? 'bg-primary text-white rounded-tr-none shadow-sm'
+                        : isUnknown
+                        ? 'bg-amber-50 border border-amber-200 text-heading rounded-tl-none shadow-sm'
+                        : 'bg-surface border border-subtle text-heading rounded-tl-none shadow-sm'
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+
+                    {/* Sources Badge */}
+                    {!isUser && msg.sources && (
+                      <SourceBadge sources={msg.sources} onSelectSourceQuery={handleSendMessage} />
+                    )}
+
+                    <div
+                      className={`text-[10px] mt-2 text-right ${
+                        isUser ? 'text-indigo-200' : 'text-muted'
+                      }`}
+                    >
+                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Typing Loader */}
+            {loading && (
+              <div className="flex items-start space-x-3.5">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500 text-white flex items-center justify-center shadow-sm">
+                  <Bot className="w-5 h-5 animate-spin" />
+                </div>
+                <div className="bg-surface border border-subtle p-3.5 rounded-2xl rounded-tl-none text-xs text-ai font-semibold flex items-center space-x-2 shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
+                  <span>Searching college knowledge base & generating response...</span>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mx-6 mb-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Input Bar */}
+        <div className="p-4 border-t border-subtle bg-surface">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center space-x-3 max-w-4xl mx-auto"
+          >
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Ask a question (e.g. Hostel fees, Exam dates, Library timings)..."
+              disabled={loading}
+              className="flex-1 saas-input py-3 px-4 rounded-xl text-sm placeholder:text-muted"
+            />
+
+            <button
+              type="submit"
+              disabled={loading || !inputMessage.trim()}
+              className="py-3 px-5 rounded-xl btn-primary text-xs flex items-center space-x-2 shadow-sm transition-all disabled:opacity-40"
+            >
+              <span>Send</span>
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
