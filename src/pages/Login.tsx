@@ -27,10 +27,13 @@ export const Login: React.FC = () => {
         navigate('/chat');
       }
     } catch (err: any) {
-      if (!err.response) {
-        setError('Unable to connect to authentication server. Please ensure the backend is running.');
+      const status = err.response?.status;
+      if (!err.response || status === 404 || status === 405) {
+        setError('The login service is not connected to this website yet. Please contact the site administrator.');
+      } else if (status === 401) {
+        setError('Invalid email or password.');
       } else {
-        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        setError(err.response?.data?.error || 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);
