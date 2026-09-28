@@ -30,11 +30,18 @@ export const Register: React.FC = () => {
         navigate('/chat');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      const status = err.response?.status;
+      const isConnectionError = !err.response || err.code === 'ERR_NETWORK' || status === 404 || status === 405;
+      if (isConnectionError) {
+        setError('The backend registration service is unavailable on this static site. Click Sign In below to try Demo Mode.');
+      } else {
+        setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-main flex items-center justify-center p-4">

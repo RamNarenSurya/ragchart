@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import { api } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isDemoMode: boolean;
   login: (token: string, user: User) => void;
+  loginAsDemoUser: (role?: UserRole) => void;
   logout: () => void;
 }
 
@@ -20,9 +22,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('college_rag_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const isDemoMode = token === 'demo_token_xyz';
+
   useEffect(() => {
     const verifyUser = async () => {
-      if (token) {
+      if (token && !isDemoMode) {
         try {
           const res = await api.get('/auth/me');
           setUser(res.data.user);
@@ -40,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     verifyUser();
-  }, [token]);
+  }, [token, isDemoMode]);
 
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem('college_rag_token', newToken);
@@ -48,6 +52,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(newToken);
     setUser(newUser);
   };
+
+  const loginAsDemoUser = (role: UserRole = 'STUDENT') => {
+    const demoUser: User = {
+      id: 'demo_user_1',
+      name: role === 'ADMIN' ? 'Demo Administrator' : 'Demo Student',
+      email: role === 'ADMIN' ? 'admin@demo.college.edu' : 'student@demo.college.edu',
+      role: role,
+    };
+    login('demo_token_xyz', demoUser);
+  };
+
 
   const logout = () => {
     localStorage.removeItem('college_rag_token');
@@ -57,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isDemoMode, login, loginAsDemoUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -70,3 +85,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
